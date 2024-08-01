@@ -1,31 +1,33 @@
 import Queue from 'bull';
-import { RegistrationMail } from '../jobs/RegistrationMail';
+import * as jobHandlers from '../jobs';
+import queueConfig from '../config/queueConfig';
 
-const redisHost = process.env.REDIS_HOST;
-const redisPort = process.env.REDIS_PORT;
-const redisPass = process.env.REDIS_PASS;
+const queues = queueConfig.queues.map(({ key, options }) => {
+  const queue = new Queue(key, {
+    redis: queueConfig.redis
+  })
 
-const payload = {
-  key: "RegistrationMail",
-  options: {
-    delay: 5000,
-    priority: 3,
-  },
-};
+  queue.process(async (job) => {
+    if (jobHandlers[key]) {
+      const jobHandler = new jobHandlers[key]();
+      await jobHandler.handle(job.data)
+    } else {
+      console.error(`No job handler found for key: ${key}`)
+    }
+  })
 
-const queue = new Queue(payload.key, {
-  redis: {
-    port: redisPort,
-    host: redisHost,
-    password: redisPass,
-  },
-});
+  return {
+    queue,
+    key,
+    options
+  }
+})
 
-queue.process(async (job) => {
-  const registrationMail = new RegistrationMail();
-  await registrationMail.handle(job.data);
-});
-
-export const addJob = async (msg) => {
-  await queue.add(msg, payload.options);
-};
+export const addJob = async (key, msg) => {
+  const queue = queues.find(q => q.key === key);
+  if (queue) {
+    await queue.queue.add(msg, queue.options)
+  } else {
+    throw new Error(`No queue found for key: ${key}`)
+  }
+}

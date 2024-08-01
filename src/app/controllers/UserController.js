@@ -1,5 +1,4 @@
 import randomPass from 'password-generator'
-import { RegistrationMail } from '../jobs/RegistrationMail'
 import { addJob } from '../providers/Queue'
 
 export class UserController {
@@ -12,8 +11,8 @@ export class UserController {
       password: randomPass(15, false)
     }
 
-    await addJob({ email: user.email, name: user.name })
+    await addJob('RegistrationMail', { ...user })
 
-    return res.json(user)
+    return res.json(`Your account registered successfully, check your email to check your password.`)
   }
 }
