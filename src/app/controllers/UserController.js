@@ -1,6 +1,6 @@
 import randomPass from 'password-generator'
-import { Mail } from '../providers/Mail'
 import { RegistrationMail } from '../jobs/RegistrationMail'
+import { addJob } from '../providers/Queue'
 
 export class UserController {
   async store(req, res) {
@@ -12,7 +12,7 @@ export class UserController {
       password: randomPass(15, false)
     }
 
-    await new RegistrationMail().handle({ email: user.email, name: user.name })
+    await addJob({ email: user.email, name: user.name })
 
     return res.json(user)
   }
